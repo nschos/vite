@@ -131,6 +131,8 @@ void processGraphData(Graph &g, std::vector<GraphElem> &edgeCount,
 	  for (GraphElem j = e0; j < e1; j++) {
 		  Edge &edge = g.getEdge(j);
 
+      std::cout << "ePos: " << ePos << ", j: " << j << ", i: " << i << ", edgeList[ePos].i_: " << edgeList[ePos].i_ << std::endl;
+
 		  assert(ePos == j);
 		  assert(i == edgeList[ePos].i_);
 		  edge.tail = edgeList[ePos].j_;
