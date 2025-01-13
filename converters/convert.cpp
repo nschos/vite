@@ -165,13 +165,13 @@ int main(int argc, char *argv[])
   }
   else if (simpleFormat2) {
       if (randomEdgeWeight)
-          loadSimpleFileUn(g, inputFileName, RND_WEIGHT);
+          loadSimpleFileUn(g, inputFileName, indexOneBased, RND_WEIGHT);
       else if (makeWeightsOne)
-          loadSimpleFileUn(g, inputFileName, ONE_WEIGHT);
+          loadSimpleFileUn(g, inputFileName, indexOneBased, ONE_WEIGHT);
       else if (origEdgeWeight) 
-          loadSimpleFileUn(g, inputFileName, ORG_WEIGHT);
+          loadSimpleFileUn(g, inputFileName, indexOneBased, ORG_WEIGHT);
       else
-          loadSimpleFileUn(g, inputFileName, ABS_WEIGHT);
+          loadSimpleFileUn(g, inputFileName, indexOneBased, ABS_WEIGHT);
   }
   else if (snapFormat) {
       // For SNAP format files, weights are not read
