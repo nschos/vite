@@ -69,8 +69,9 @@
 #include "simple.hpp"
 #include "snap.hpp"
 #include "shards.hpp"
+#include "partition.hpp"
 
-static std::string inputFileName, outputFileName, shardedFileArgs;
+static std::string inputFileName, outputFileName, shardedFileArgs, partitionFileName;
 
 static bool matrixMarketFormat = false;
 
@@ -82,6 +83,7 @@ static bool simpleFormat = false;
 static bool simpleFormat2 = false;
 static bool snapFormat = false;
 static bool shardedFormat = false;
+static bool partitionFormat = false;
 
 static bool output = false;
 static bool indexOneBased = false;
@@ -100,7 +102,7 @@ int main(int argc, char *argv[])
   parseCommandLine(argc, argv);
 
   // Only the following formats supported for now
-  assert(dimacsFormat || metisFormat || simpleFormat || matrixMarketFormat|| simpleFormat2 || snapFormat || shardedFormat);
+  assert(dimacsFormat || metisFormat || simpleFormat || matrixMarketFormat|| simpleFormat2 || snapFormat || shardedFormat || partitionFormat);
 
   Graph *g = NULL;
 
@@ -110,7 +112,11 @@ int main(int argc, char *argv[])
   std::cout << "Memory used: " << (static_cast<double>(rus.ru_maxrss) * 1024.0) / 1048576.0 <<
     std::endl;
 
-  if (dimacsFormat)
+  if (partitionFormat) {
+    // loadPartitionFile(g, inputFileName, partitionFileName, indexOneBased, ONE_WEIGHT);
+    loadPartitionFile2(g, inputFileName, partitionFileName, ONE_WEIGHT);
+  }
+  else if (dimacsFormat)
   {
       if (dimacs_directed) {
           if (randomEdgeWeight)
@@ -222,6 +228,8 @@ int main(int argc, char *argv[])
       return 1;
   }
 
+  std::cout << "END PROCESSING FILE" << std::endl;
+
   getrusage(RUSAGE_SELF, &rus);
   std::cout << "Loaded graph from file: " << inputFileName << std::endl;
   std::cout << "Memory used: " << 
@@ -261,6 +269,31 @@ int main(int argc, char *argv[])
   }
 
   ofs.close();
+
+  if (partitionFormat) {
+    outputFileName.append(".part");
+
+    std::ofstream partitionOutputFile(outputFileName);
+
+    if (!partitionOutputFile.is_open()) {
+      std::cerr << "Error opening output partition file: " << outputFileName << std::endl;
+      // return;
+      // return 0;
+      exit(EXIT_FAILURE);
+    }
+
+    GraphElem numberOfParts = g->partCounter.size();
+    
+    partitionOutputFile << numberOfParts << "\n";
+    for (int i = 0; i < numberOfParts; i++) {
+      GraphElem partSize = g->partCounter[i];
+      partitionOutputFile << partSize << "\n";
+    }
+
+    partitionOutputFile.close();
+    std::cout << "Partition file written." << std::endl;
+  } 
+
   delete g;
 
   t1 = mytimer();
@@ -274,7 +307,7 @@ void parseCommandLine(const int argc, char * const argv[])
 {
   int ret;
 
-  while ((ret = getopt(argc, argv, "f:o:md:uesnrix:zw")) != -1) {
+  while ((ret = getopt(argc, argv, "f:o:md:uesnrixp:zw")) != -1) {
     switch (ret) {
     case 'f':
       inputFileName.assign(optarg);
@@ -311,6 +344,10 @@ void parseCommandLine(const int argc, char * const argv[])
       shardedFormat = true;
       shardedFileArgs.assign(optarg);
       break;
+    case 'p':
+      partitionFormat = true;
+      partitionFileName.assign(optarg);
+      break;
     case 'z':
       indexOneBased = true;
       break;
@@ -324,12 +361,12 @@ void parseCommandLine(const int argc, char * const argv[])
   }
 
   if ((matrixMarketFormat || dimacsFormat || metisFormat || simpleFormat 
-              || simpleFormat2 || snapFormat || shardedFormat) == false) {
+              || simpleFormat2 || snapFormat || shardedFormat || partitionFormat) == false) {
     std::cerr << "Must select a file format for the input file!" << std::endl;
     exit(EXIT_FAILURE);
   }
   const bool fileFormat[] = { matrixMarketFormat, dimacsFormat, metisFormat, 
-      simpleFormat, simpleFormat2, snapFormat, shardedFormat};
+      simpleFormat, simpleFormat2, snapFormat, shardedFormat, partitionFormat};
   const int numFormats = sizeof(fileFormat) / sizeof(fileFormat[0]);
 
   int numTrue = 0;

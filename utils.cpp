@@ -90,19 +90,22 @@ GraphWeight genRandom(GraphWeight low, GraphWeight high)
 
 void processGraphData(Graph &g, std::vector<GraphElem> &edgeCount,
 		      std::vector<GraphElemTuple> &edgeList,
-		      const GraphElem nv, const GraphElem ne)
+		      const GraphElem nv, const GraphElem ne, const bool IsPartitioned)
 {
-  std::vector<GraphElem> ecTmp(nv + 1);
 
-  std::partial_sum(edgeCount.begin(), edgeCount.end(), ecTmp.begin());
-  edgeCount = ecTmp;
+  if (!IsPartitioned) {
+    std::vector<GraphElem> ecTmp(nv + 1);
 
-  g.setEdgeStartForVertex(0, 0);
+    std::partial_sum(edgeCount.begin(), edgeCount.end(), ecTmp.begin());
+    edgeCount = ecTmp;
 
-  for (GraphElem i = 0; i < nv; i++)
-    g.setEdgeStartForVertex(i + 1, edgeCount[i + 1]);
+    g.setEdgeStartForVertex(0, 0);
 
-  edgeCount.clear();
+    for (GraphElem i = 0; i < nv; i++)
+      g.setEdgeStartForVertex(i + 1, edgeCount[i + 1]);
+
+    edgeCount.clear();
+  }
 
   auto ecmp = [] (GraphElemTuple const& e0, GraphElemTuple const& e1)
   { return ((e0.i_ < e1.i_) || ((e0.i_ == e1.i_) && (e0.j_ < e1.j_))); };
@@ -119,6 +122,38 @@ void processGraphData(Graph &g, std::vector<GraphElem> &edgeCount,
 #endif
   }
 
+  if (IsPartitioned) {
+    for (int i = 0; i < edgeCount.size(); i++) {
+      edgeCount[i] = 0;
+    }
+
+    int i = 0;
+    while (i < edgeList.size()) {
+      GraphElem vertex = edgeList[i].i_;
+      GraphElem count = 1;
+      while (vertex == edgeList[i+1].i_) {
+        count++;
+        i++;
+      }
+      i++;
+      edgeCount[vertex+1] = count;
+    }
+
+    std::vector<GraphElem> ecTmp(nv+1);
+
+    std::partial_sum(edgeCount.begin(), edgeCount.end(), ecTmp.begin());
+    edgeCount = ecTmp;
+
+    g.setEdgeStartForVertex(0, 0);
+
+    for (GraphElem i = 0; i < nv; i++)
+      g.setEdgeStartForVertex(i + 1, edgeCount[i + 1]);
+
+    edgeCount.clear();
+  }
+
+  std::cout << "nv: " << nv << std::endl;
+
   GraphElem ePos = 0;
   for (GraphElem i = 0; i < nv; i++) {
 	  GraphElem e0, e1;
@@ -131,7 +166,7 @@ void processGraphData(Graph &g, std::vector<GraphElem> &edgeCount,
 	  for (GraphElem j = e0; j < e1; j++) {
 		  Edge &edge = g.getEdge(j);
 
-     std::cout << "ePos: " << ePos << ", j: " << j << ", i: " << i << ", edgeList[ePos].i_: " << edgeList[ePos].i_ << ", edgeList[ePos].j_: " << edgeList[ePos].j_ << std::endl;
+    //  std::cout << "ePos: " << ePos << ", j: " << j << ", i: " << i << ", edgeList[ePos].i_: " << edgeList[ePos].i_ << ", edgeList[ePos].j_: " << edgeList[ePos].j_ << std::endl;
 
 		  assert(ePos == j);
 		  assert(i == edgeList[ePos].i_);

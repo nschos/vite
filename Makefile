@@ -1,7 +1,8 @@
 # change to CC for Cray systems
 CXX = mpicxx
 
-OPTFLAGS = -g -O3 -fopenmp -DPRINT_DIST_STATS -DDONT_CREATE_DIAG_FILES #-DDEBUG_PRINTF -DCHECK_COLORING_CONFLICTS
+# OPTFLAGS = -g -O3 -fopenmp -DPRINT_DIST_STATS -DDONT_CREATE_DIAG_FILES -DDEBUG_PRINTF #-DCHECK_COLORING_CONFLICTS
+OPTFLAGS = -g -O0 -fopenmp -DPRINT_DIST_STATS -DDONT_CREATE_DIAG_FILES -DDEBUG_PRINTF #-DCHECK_COLORING_CONFLICTS
 # use export ASAN_OPTIONS=verbosity=1 to check ASAN output
 SNTFLAGS = -std=c++11 -fopenmp -fsanitize=address -O1 -fno-omit-frame-pointer
 CXXFLAGS = -std=c++11 $(OPTFLAGS) -DABS_MOD_PER_ITER #-DUSE_MPI_COLLECTIVES #-DUSE_32_BIT_GRAPH  #-DDEBUG_PRINTF
@@ -24,7 +25,7 @@ ifeq ($(ENABLE_NETWORKIT),1)
 endif
 
 GOBJFILES = main.o rebuild.o distgraph.o louvain.o coloring.o compare.o
-FOBJFILES = converters/convert.o converters/matrix-market.o converters/dimacs.o converters/metis.o converters/simple2.o converters/simple.o converters/snap.o converters/shards.o utils.o
+FOBJFILES = converters/convert.o converters/matrix-market.o converters/dimacs.o converters/metis.o converters/simple2.o converters/partition.o converters/simple.o converters/snap.o converters/shards.o utils.o
 POBJFILES = parallel-converters/parallel-converter.o parallel-converters/parallel-shards.o utils.o 
 ALLOBJFILES = $(GOBJFILES) $(FOBJFILES) $(NOBJFILES) $(POBJFILES)
 

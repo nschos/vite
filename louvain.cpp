@@ -471,6 +471,11 @@ GraphWeight distLouvainMethod(const int me, const int nprocs, const DistGraph &d
 #endif
   
   while(true) {
+
+  if (me == 0) {
+    std::cout << "currMod: " << currMod << std::endl;
+  }
+
 #ifdef DEBUG_PRINTF  
     const double t2 = MPI_Wtime();
     ofs << "Starting iteration: " << numIters << std::endl;

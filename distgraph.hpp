@@ -111,6 +111,8 @@ void loadDistGraphMPIIO(int me, int nprocs, int ranks_per_node,
         DistGraph *&dg, std::string& fileName);
 void loadDistGraphMPIIOBalanced(int me, int nprocs, int ranks_per_node, 
         DistGraph *&dg, std::string& fileName);
+void loadDistGraphMPIIOPartitioned(int me, int nprocs, int ranks_per_node, 
+        DistGraph *&dg, std::string &graphFileName, std::string &partitionFileName);
 
 // graph generation
 void generateInMemGraph(int rank, int nprocs, DistGraph *&dg, GraphElem nv, GraphWeight randomEdgePercent, std::string fileOut);

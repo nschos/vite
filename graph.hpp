@@ -77,6 +77,7 @@ typedef std::vector<Comm> CommVector;
 class Graph {
 protected:
   typedef std::vector<Edge> EdgeList;
+  typedef std::vector<GraphElem> PartCounter;
 
   GraphElem numVertices;
   GraphElem numEdges;
@@ -84,6 +85,7 @@ protected:
 public:
   EdgeIndexes edgeListIndexes;
   EdgeList edgeList;
+  PartCounter partCounter;
 
   Graph(const GraphElem onv, const GraphElem one);
   Graph(const Graph &othis);
@@ -106,12 +108,12 @@ protected:
 };
 
 inline Graph::Graph()
-  : numVertices(0), numEdges(0)
+  : numVertices(0), numEdges(0), partCounter(0)
 {
 } // Graph
 
 inline Graph::Graph(const GraphElem onv, const GraphElem one)
-  : numVertices(onv), numEdges(one)
+  : numVertices(onv), numEdges(one), partCounter(0)
 {
   edgeListIndexes.resize(numVertices + 1);
   edgeList.resize(numEdges);
@@ -122,7 +124,7 @@ inline Graph::Graph(const GraphElem onv, const GraphElem one)
 } // Graph
 
 inline Graph::Graph(const Graph &othis)
-  : numVertices(othis.numVertices), numEdges(othis.numEdges)
+  : numVertices(othis.numVertices), numEdges(othis.numEdges), partCounter(0)
 {
   edgeListIndexes.resize(numVertices + 1);
   edgeList.resize(numEdges);

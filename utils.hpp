@@ -81,15 +81,20 @@ struct GraphElemTuple {
 
     GraphElem i_, j_;
     GraphWeight w_;
+    GraphElem rank_;
+
+    GraphElemTuple(GraphElem i, GraphElem j, GraphWeight w, GraphElem rank): 
+        i_(i), j_(j), w_(w), rank_(rank) 
+    {}
 
     GraphElemTuple(GraphElem i, GraphElem j, GraphWeight w): 
-        i_(i), j_(j), w_(w) 
+        i_(i), j_(j), w_(w), rank_(0) 
     {}
     GraphElemTuple(GraphElem i, GraphElem j): 
-        i_(i), j_(j), w_(1.0) 
+        i_(i), j_(j), w_(1.0), rank_(0) 
     {}
     GraphElemTuple(): 
-        i_(-1), j_(-1), w_(0.0) 
+        i_(-1), j_(-1), w_(0.0), rank_(0) 
     {}
 
     // compare   
@@ -115,7 +120,7 @@ GraphWeight genRandom(GraphWeight low, GraphWeight high);
 // sort edge list
 void processGraphData(Graph &g, std::vector<GraphElem> &edgeCount,
 		      std::vector<GraphElemTuple> &edgeList,
-		      const GraphElem nv, const GraphElem ne);    
+		      const GraphElem nv, const GraphElem ne, const bool IsPartitioned = false);
 
 // forward declare LCG class for 
 // distributed random number 

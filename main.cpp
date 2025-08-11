@@ -71,7 +71,7 @@
 std::ofstream ofs;
 std::ofstream ofcks;
 
-static std::string inputFileName, outputFileName, colorArgs;
+static std::string inputFileName, outputFileName, colorArgs, partitionFileName;
 static std::string groundTruthFileName;
 static int me, nprocs;
 
@@ -91,6 +91,7 @@ static bool   readBalanced              = false;
 static int    ranksPerNode              = 1;
 static bool   outputFiles               = false;
 static bool   thresholdScaling          = false;
+static bool   partitioning              = false;
 
 // early termination related
 static bool   earlyTerm                 = false;
@@ -162,13 +163,16 @@ int main(int argc, char *argv[])
 
   // load the input data file and distribute data   
   if (generateGraph) {
-      generateInMemGraph(me, nprocs, dg, numVerticesGenGraph, randomEdgePercent, outputFileName);
-  }
-  else {
+    generateInMemGraph(me, nprocs, dg, numVerticesGenGraph, randomEdgePercent, outputFileName);
+  } else {
+    if (partitioning) {
+      loadDistGraphMPIIOPartitioned(me, nprocs, ranksPerNode, dg, inputFileName, partitionFileName);
+    } else {
       if (readBalanced)
-          loadDistGraphMPIIOBalanced(me, nprocs, ranksPerNode, dg, inputFileName);
+        loadDistGraphMPIIOBalanced(me, nprocs, ranksPerNode, dg, inputFileName);
       else
-          loadDistGraphMPIIO(me, nprocs, ranksPerNode, dg, inputFileName);
+        loadDistGraphMPIIO(me, nprocs, ranksPerNode, dg, inputFileName);
+    }
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -608,7 +612,15 @@ void parseCommandLine(const int argc, char * const argv[])
   int ret;
   char *temp; // check empty values
 
-  while ((ret = getopt(argc, argv, "f:bc:od:r:t:a:ig:zpn:e:s:j")) != -1) {
+  if (me == 0) {
+    std::cout << "argc: " << argc << std::endl;
+
+    for (int i = 0; i < argc; i++) {
+        std::cout << "argv[" << i << "]: " << argv[i] << std::endl;
+    }
+  }
+ 
+  while ((ret = getopt(argc, argv, "f:bcp:od:r:t:a:ig:zqn:e:s:j")) != -1) {
     switch (ret) {
     case 'f':
       inputFileName.assign(optarg);
@@ -635,6 +647,10 @@ void parseCommandLine(const int argc, char * const argv[])
               maxColors = std::stol(args[0]);
       }
       coloring = true;
+      break;
+    case 'p':
+      partitionFileName.assign(optarg);
+      partitioning = true;
       break;
     case 'o':
       outputFiles = true;
@@ -679,7 +695,7 @@ void parseCommandLine(const int argc, char * const argv[])
     case 'z':
       isGroundTruthZeroBased = false;
       break;
-    case 'p':
+    case 'q':
       runOnePhase = true;
       break;
     case 'n':
@@ -730,13 +746,18 @@ void parseCommandLine(const int argc, char * const argv[])
       MPI_Abort(MPI_COMM_WORLD, -99);
   }
 
+  if (me == 0 && (partitioning && partitionFileName.empty())) {
+      std::cerr << "Must specify a partition file name with -p" << std::endl;
+      MPI_Abort(MPI_COMM_WORLD, -99);
+  }
+
   if (me == 0 && (runOnePhase && thresholdScaling)) {
-      std::cerr << "Cannot turn on threshold-cycling (-i) with a single phase run (-p). Re-run using one of the options." << std::endl;
+      std::cerr << "Cannot turn on threshold-cycling (-i) with a single phase run (-q). Re-run using one of the options." << std::endl;
       MPI_Abort(MPI_COMM_WORLD, -99);
   }
   
   if (me == 0 && !generateGraph && (randomEdgePercent > 0.0)) {
-      std::cerr << "Must specify -n <...> for graph generation first and then -p <...> to add random edges to it." << std::endl;
+      std::cerr << "Must specify -n <...> for graph generation first and then -q <...> to add random edges to it." << std::endl;
       MPI_Abort(MPI_COMM_WORLD, -99);
   }
   

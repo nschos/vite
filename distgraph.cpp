@@ -219,6 +219,15 @@ void loadDistGraphMPIIO(int me, int nprocs, int ranks_per_node, DistGraph *&dg, 
 
     offset = 2*sizeof(GraphElem) + (globalNumVertices+1)*sizeof(GraphElem) + g.edgeListIndexes[0]*(sizeof(Edge));
 
+    std::cout << "Rank: " << me << std::endl;
+    std::cout << "  Offset: " << offset << std::endl;
+    std::cout << "  Edge-list size: " << g.edgeList.size() << std::endl;
+    std::cout << "  Edge-list size (bytes): " << tot_bytes << std::endl;
+    std::cout << "  Edge-list size (edges): " << tot_bytes/sizeof(Edge) << std::endl;
+    std::cout << "  g.edgeListIndexes[0]: " << g.edgeListIndexes[0] << std::endl;
+    std::cout << "  Number of local edges: " << localNumEdges << std::endl;
+    std::cout << "  Number of local vertices: " << localNumVertices << std::endl;
+
     if (tot_bytes<INT_MAX)
         MPI_File_read_at(fh, offset, &g.edgeList[0], tot_bytes, MPI_BYTE, &status);
     else {
@@ -269,6 +278,11 @@ void loadDistGraphMPIIOBalanced(int me, int nprocs, int ranks_per_node, DistGrap
     {
         balanceEdges(nprocs, fileName, mbins);
         std::cout << "Trying to achieve equal edge distribution across processes." << std::endl;
+
+        std::cout << "mbins: (size: " << mbins.size() << ")" << std::endl;
+        for (int i = 0; i < mbins.size(); i++) {
+            std::cout << "i: " << i << " -> " << mbins[i] << std::endl;;
+        }
     }
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Bcast(mbins.data(), nprocs+1, MPI_GRAPH_TYPE, 0, MPI_COMM_WORLD);
@@ -298,6 +312,8 @@ void loadDistGraphMPIIOBalanced(int me, int nprocs, int ranks_per_node, DistGrap
     MPI_File_read_all(fh,&globalNumEdges,sizeof(GraphElem), MPI_BYTE, &status);
 
     GraphElem localNumVertices = mbins[me+1] - mbins[me];
+
+    std::cout << "Rank: " << me << ", local num vertices: " << localNumVertices << std::endl; 
 
     // set to zero initially
     GraphElem localNumEdges = 0;
@@ -353,6 +369,15 @@ void loadDistGraphMPIIOBalanced(int me, int nprocs, int ranks_per_node, DistGrap
 
     offset = 2*sizeof(GraphElem) + (globalNumVertices+1)*sizeof(GraphElem) + g.edgeListIndexes[0]*(sizeof(Edge));
 
+    std::cout << "Rank: " << me << std::endl;
+    std::cout << "  Offset: " << offset << std::endl;
+    std::cout << "  Edge-list size: " << g.edgeList.size() << std::endl;
+    std::cout << "  Edge-list size (bytes): " << tot_bytes << std::endl;
+    std::cout << "  Edge-list size (edges): " << tot_bytes/sizeof(Edge) << std::endl;
+    std::cout << "  g.edgeListIndexes[0]: " << g.edgeListIndexes[0] << std::endl;
+    std::cout << "  Number of local edges: " << localNumEdges << std::endl;
+    std::cout << "  Number of local vertices: " << localNumVertices << std::endl;
+
     if (tot_bytes<INT_MAX)
         MPI_File_read_at(fh, offset, &g.edgeList[0], tot_bytes, MPI_BYTE, &status);
     else {
@@ -385,6 +410,191 @@ void loadDistGraphMPIIOBalanced(int me, int nprocs, int ranks_per_node, DistGrap
     g.setEdgeWeightstoOne();
 #endif
 }
+
+void partitionateVertexes(int nprocs, std::string &partitionFileName, std::vector<GraphElem>& mbins)
+{
+    GraphElem np; // #partitions
+
+    std::ifstream infile(partitionFileName);
+
+    if (!infile.is_open()) {
+        std::cout << "Error: Could not open input file:" << partitionFileName << std::endl;
+        MPI_Abort(MPI_COMM_WORLD, -99);
+        // return;
+    }
+
+    std::string line;
+    std::getline(infile, line);
+
+    np = GraphElem(std::stoll(line));
+    int index = 1;
+
+    while (std::getline(infile, line)) {
+        GraphElem nv = GraphElem(std::stoll(line));
+        mbins[index] = nv;
+        index++;
+    }
+
+    infile.close();
+
+    // prefix sum to store indices 
+    for (int k = 1; k < nprocs+1; k++)
+        mbins[k] += mbins[k-1]; 
+
+    // mbins[nprocs] += 1;
+}
+
+// MPI parallel-I/O read binary graph file and binary partition file
+void loadDistGraphMPIIOPartitioned(int me, int nprocs, int ranks_per_node, DistGraph *&dg, std::string &graphFileName, std::string &partitionFileName)
+{
+    GraphElem globalNumEdges;
+    GraphElem globalNumVertices;
+
+    int file_open_error;
+    MPI_File fh;
+    MPI_Status status;
+    std::vector<GraphElem> mbins(nprocs+1,0);
+
+    // find #vertices per process such that 
+    // each process roughly owns equal #edges
+    if (me == 0)
+    {
+        partitionateVertexes(nprocs, partitionFileName, mbins);
+        // std::cout << "Trying to achieve equal edge distribution across processes." << std::endl;
+        std::cout << "Fazendo particionamento" << std::endl;
+
+        std::cout << "mbins: (size: " << mbins.size() << ")" << std::endl;
+        for (int i = 0; i < mbins.size(); i++) {
+            std::cout << "i: " << i << " -> " << mbins[i] << std::endl;;
+        }
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Bcast(mbins.data(), nprocs+1, MPI_GRAPH_TYPE, 0, MPI_COMM_WORLD);
+
+    // specify the number of aggregates
+    // nprocs / ranks_per_node 
+    MPI_Info info;
+    MPI_Info_create(&info);
+    int naggr = (ranks_per_node > 1) ? (nprocs/ranks_per_node) : ranks_per_node;
+    if (naggr >= nprocs)
+        naggr = 1;
+    std::stringstream tmp_str;
+    tmp_str << naggr;
+    std::string str = tmp_str.str();
+    MPI_Info_set(info, "cb_nodes", str.c_str());
+
+    file_open_error = MPI_File_open(MPI_COMM_WORLD, graphFileName.c_str(), MPI_MODE_RDONLY, info, &fh); 
+
+    MPI_Info_free(&info);
+
+    if (file_open_error != MPI_SUCCESS) {
+        std::cout<< " Error opening file! " << std::endl;
+        MPI_Abort(MPI_COMM_WORLD, -99);
+    }
+
+    MPI_File_read_all(fh,&globalNumVertices,sizeof(GraphElem), MPI_BYTE, &status);
+    MPI_File_read_all(fh,&globalNumEdges,sizeof(GraphElem), MPI_BYTE, &status);
+
+    GraphElem localNumVertices = mbins[me+1] - mbins[me];
+
+    std::cout << "Rank: " << me << ", local num vertices: " << localNumVertices << std::endl; 
+
+    // set to zero initially
+    GraphElem localNumEdges = 0;
+
+    std::vector<GraphElem> party(nprocs+1);
+
+    dg = new DistGraph(globalNumVertices,globalNumEdges);
+
+    party[0]=0;
+    // account for hash in data structure...
+    for (int i=1;i<nprocs+1; i++)
+        party[i]=mbins[i];  
+
+    dg->createLocalGraph(localNumVertices, localNumEdges, &party);
+    Graph &g = dg->getLocalGraph(); 
+
+    //  Let N = array length and P = number of processors.
+    //  From j = 0 to P-1,
+    // Starting point of array on processor j = floor(N * j / P)
+    // Length of array on processor j = floor(N * (j + 1) / P) – floor(N * j / P)
+
+    // MPI LIMITS
+    uint64_t tot_bytes=(localNumVertices+1)*sizeof(GraphElem);
+    MPI_Offset offset = 2*sizeof(GraphElem) + mbins[me]*sizeof(GraphElem);
+
+    // printf("Process: %d, Edge-list size: %d, elements: %d offset: %ld, offset elements: %d\n", me, g.edgeListIndexes.size(),  tot_bytes/sizeof(GraphElem), offset, offset/sizeof(GraphElem) - 2); 
+
+    if (tot_bytes<INT_MAX)
+        MPI_File_read_at(fh, offset, &g.edgeListIndexes[0], tot_bytes, MPI_BYTE, &status);
+    else {
+        int chunk_bytes=INT_MAX;
+        uint8_t *curr_pointer = (uint8_t*) &g.edgeListIndexes[0];
+        //GraphElem *curr_pointer = (GraphElem*) &g.edgeListIndexes[0];
+        uint64_t transf_bytes=0;
+
+        while (transf_bytes<tot_bytes)
+        {
+            MPI_File_read_at(fh, offset, curr_pointer, chunk_bytes, MPI_BYTE, &status);
+            transf_bytes+=chunk_bytes;
+            offset+=chunk_bytes;
+            curr_pointer+=chunk_bytes;
+
+            if (tot_bytes-transf_bytes<INT_MAX)
+                chunk_bytes=tot_bytes-transf_bytes;
+        } 
+    }    
+
+    localNumEdges = g.edgeListIndexes[localNumVertices]-g.edgeListIndexes[0];
+
+    g.setNumEdges(localNumEdges);
+
+    tot_bytes=localNumEdges*(sizeof(Edge));
+
+    offset = 2*sizeof(GraphElem) + (globalNumVertices+1)*sizeof(GraphElem) + g.edgeListIndexes[0]*(sizeof(Edge));
+
+    std::cout << "Rank: " << me << std::endl;
+    std::cout << "  Offset: " << offset << std::endl;
+    std::cout << "  Edge-list size: " << g.edgeList.size() << std::endl;
+    std::cout << "  Edge-list size (bytes): " << tot_bytes << std::endl;
+    std::cout << "  Edge-list size (edges): " << tot_bytes/sizeof(Edge) << std::endl;
+    std::cout << "  g.edgeListIndexes[0]: " << g.edgeListIndexes[0] << std::endl;
+    std::cout << "  Number of local edges: " << localNumEdges << std::endl;
+    std::cout << "  Number of local vertices: " << localNumVertices << std::endl;
+
+    if (tot_bytes<INT_MAX)
+        MPI_File_read_at(fh, offset, &g.edgeList[0], tot_bytes, MPI_BYTE, &status);
+    else {
+        int chunk_bytes=INT_MAX;
+        uint8_t *curr_pointer = (uint8_t*)&g.edgeList[0];
+        uint64_t transf_bytes=0;
+
+        while (transf_bytes<tot_bytes)
+        {
+            MPI_File_read_at(fh, offset, curr_pointer, chunk_bytes, MPI_BYTE, &status);
+            transf_bytes+=chunk_bytes;
+            offset+=chunk_bytes;
+            curr_pointer+=chunk_bytes;
+
+            if (tot_bytes-transf_bytes<INT_MAX)
+                chunk_bytes=tot_bytes-transf_bytes;
+        } 
+    }    
+
+    MPI_File_close(&fh);
+
+    for(GraphElem i=1;  i < localNumVertices+1; i++)
+        g.edgeListIndexes[i]-=g.edgeListIndexes[0];   
+
+    g.edgeListIndexes[0]=0;
+    mbins.clear();
+
+    // TODO FIXME create a runtime option for setting edge weights to 1.0
+#if defined(SET_EDGE_WEIGHTS_TO_ONE)
+    g.setEdgeWeightstoOne();
+#endif
+}
+
 
 // generate graph
 // 1D vertex distribution
