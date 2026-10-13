@@ -5,3 +5,6 @@
 *.bin
 *.sbatch
 *bin/*
+*.part
+*.part.converted
+*.lock

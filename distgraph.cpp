@@ -420,7 +420,6 @@ void partitionateVertexes(int nprocs, std::string &partitionFileName, std::vecto
     if (!infile.is_open()) {
         std::cout << "Error: Could not open input file:" << partitionFileName << std::endl;
         MPI_Abort(MPI_COMM_WORLD, -99);
-        // return;
     }
 
     std::string line;
@@ -440,8 +439,6 @@ void partitionateVertexes(int nprocs, std::string &partitionFileName, std::vecto
     // prefix sum to store indices 
     for (int k = 1; k < nprocs+1; k++)
         mbins[k] += mbins[k-1]; 
-
-    // mbins[nprocs] += 1;
 }
 
 // MPI parallel-I/O read binary graph file and binary partition file
@@ -453,23 +450,20 @@ void loadDistGraphMPIIOPartitioned(int me, int nprocs, int ranks_per_node, DistG
     int file_open_error;
     MPI_File fh;
     MPI_Status status;
+
+
+    ...
+
     std::vector<GraphElem> mbins(nprocs+1,0);
 
-    // find #vertices per process such that 
-    // each process roughly owns equal #edges
-    if (me == 0)
-    {
+    if (rank == 0) {
+        std::cout << "Lendo arquivo de particionamento" << std::endl;
         partitionateVertexes(nprocs, partitionFileName, mbins);
-        // std::cout << "Trying to achieve equal edge distribution across processes." << std::endl;
-        std::cout << "Fazendo particionamento" << std::endl;
-
-        std::cout << "mbins: (size: " << mbins.size() << ")" << std::endl;
-        for (int i = 0; i < mbins.size(); i++) {
-            std::cout << "i: " << i << " -> " << mbins[i] << std::endl;;
-        }
     }
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Bcast(mbins.data(), nprocs+1, MPI_GRAPH_TYPE, 0, MPI_COMM_WORLD);
+
+    ...
 
     // specify the number of aggregates
     // nprocs / ranks_per_node 

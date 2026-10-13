@@ -221,7 +221,7 @@ void loadPartitionFile2(Graph *&g, const std::string &fileName, const std::strin
   g = new Graph(numVertices, numEdges);
 
   // PARTITION /////////////////////
-  std::vector<GraphElem> partitionCounterAux(partitionCount.size());
+  std::vector<GraphElem> newPartitionCounter(partitionCount.size());
   std::vector<GraphElem> newIndex(numVertices);
 
   for (int i = 0; i < numVertices; i++) {
@@ -230,8 +230,8 @@ void loadPartitionFile2(Graph *&g, const std::string &fileName, const std::strin
     for (int j = 0; j < partition; j++) {
       index += partitionCount[j];
     }
-    index += partitionCounterAux[partition];
-    partitionCounterAux[partition]++;
+    index += newPartitionCounter[partition];
+    newPartitionCounter[partition]++;
     newIndex[i] = index;
   }
 
@@ -243,7 +243,7 @@ void loadPartitionFile2(Graph *&g, const std::string &fileName, const std::strin
 
   processGraphData(*g, edgeCount, edgeList, numVertices, numEdges, true);
 
-  g->partCounter = partitionCounterAux;
+  g->partCounter = newPartitionCounter;
 } // loadMatrixMarketFile
 
 
@@ -381,7 +381,7 @@ void loadPartitionFile(Graph *&g, const std::string &fileName, const std::string
   numEdges = edgeList.size();
   g = new Graph(numVertices, numEdges);
 
-  std::vector<GraphElem> partitionCounterAux(partitionCount.size());
+  std::vector<GraphElem> newPartitionCounter(partitionCount.size());
   // if (partitionBased) {
     std::vector<GraphElem> newIndex(numVertices);
   
@@ -391,8 +391,8 @@ void loadPartitionFile(Graph *&g, const std::string &fileName, const std::string
       for (int j = 0; j < partition; j++) {
         index += partitionCount[j];
       }
-      index += partitionCounterAux[partition];
-      partitionCounterAux[partition]++;
+      index += newPartitionCounter[partition];
+      newPartitionCounter[partition]++;
       newIndex[i] = index;
     }
 
@@ -404,7 +404,7 @@ void loadPartitionFile(Graph *&g, const std::string &fileName, const std::string
 
   processGraphData(*g, edgeCount, edgeList, numVertices, numEdges);
   // if (partitionBased) {
-    g->partCounter = partitionCounterAux;
+    g->partCounter = newPartitionCounter;
   // }
   
   t1 = mytimer();  
